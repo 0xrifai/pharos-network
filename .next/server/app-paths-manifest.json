@@ -1,0 +1,9 @@
+{
+  "/cfd-trading/page": "app/cfd-trading/page.js",
+  "/api/logs/[taskId]/route": "app/api/logs/[taskId]/route.js",
+  "/primus/page": "app/primus/page.js",
+  "/page": "app/page.js",
+  "/pns/page": "app/pns/page.js",
+  "/api/pns/route": "app/api/pns/route.js",
+  "/api/primus/route": "app/api/primus/route.js"
+}

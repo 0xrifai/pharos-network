@@ -1,6 +1,5 @@
 import fs from "fs"
-import { failed } from "@scripts/utils/console"
-import { fetchWithProxyUndici } from "@scripts/utils/ip"
+import { fetchWithUndici } from "@scripts/utils/ip"
 import * as dotenv from "dotenv"
 import path from "path"
 import { getAccessToken } from "./accessToken"
@@ -12,6 +11,7 @@ interface SignatureParams {
      nftType: number,
      signer: Wallet,
      baseDir: string
+     logger: any
 }
 
 const headers = {
@@ -24,18 +24,19 @@ const headers = {
 export async function getSignature({
      nftType,
      signer,
-     baseDir
+     baseDir,
+     logger
 }: SignatureParams) {
      dotenv.config({ path: path.join(baseDir, ".env") })
-     let { PROXY_URL, AQUAFLUX_ACCESS_TOKEN } = process.env!
+     let { AQUAFLUX_ACCESS_TOKEN } = process.env!
      const url = "https://api.aquaflux.pro/api/v1/users/get-signature"
      try {
           if (!AQUAFLUX_ACCESS_TOKEN) {
-               console.log("Creating access token...")
+               logger.addLog("Creating access token...")
                const accesToken = await getAccessToken({
                     signer,
-                    proxyUrl: PROXY_URL,
-                    headers
+                    headers,
+                    logger
                })
                AQUAFLUX_ACCESS_TOKEN = accesToken.data.accessToken
                const envPath = path.join(baseDir, ".env")
@@ -48,14 +49,13 @@ export async function getSignature({
                     value: AQUAFLUX_ACCESS_TOKEN!
                })
                fs.writeFileSync(envPath, updatedEnv)
-               console.log(`✅ ${key} saved to ${envPath}`)
+               logger.addLog(`✅ ${key} saved to ${envPath}`)
 
           }else{
-               console.log("Access token already exist!")
+               logger.addLog("Access token already exist!")
           }
-          const isHolding = await fetchWithProxyUndici({
+          const isHolding = await fetchWithUndici({
                url: "https://api.aquaflux.pro/api/v1/users/check-token-holding",
-               proxyUrl: PROXY_URL,
                method: "POST",
                headers: {
                          ...headers,
@@ -65,9 +65,8 @@ export async function getSignature({
           })
           const jsonIsHolding = JSON.parse(isHolding.body)
           if(jsonIsHolding.data.isHoldingToken){
-               const res = await fetchWithProxyUndici({
+               const res = await fetchWithUndici({
                     url,
-                    proxyUrl: PROXY_URL,
                     method: "POST",
                     headers: {
                          ...headers,
@@ -83,7 +82,7 @@ export async function getSignature({
                return json.data
           }
      } catch (error) {
-          failed({ errorMessage: error })
+          logger.addError(`Error in getSignature: ${error}`)
           return
      }
 }

@@ -3,6 +3,7 @@ import { getPrice, getTick } from "@scripts/utils/price"
 import { Contract, Interface, InterfaceAbi, JsonRpcProvider, Wallet } from "ethers"
 import { liquidityABI } from "@scripts/lib/data"
 import ERC20ABI from "@scripts/lib/ERC20.json"
+import { RealtimeLogger } from "@/scripts/utils/realtime-logger"
 
 interface LiquidityParams {
      provider: JsonRpcProvider,
@@ -12,7 +13,8 @@ interface LiquidityParams {
      tokenB: string,
      amountInPercent: number,
      router: string,
-     deadline: number
+     deadline: number,
+     logger: RealtimeLogger
 }
 
 export async function liquidity({
@@ -23,7 +25,8 @@ export async function liquidity({
      provider,
      amountInPercent,
      router,
-     deadline
+     deadline,
+     logger
 }:LiquidityParams) {
      const price = await getPrice({
           poolAddress,
@@ -62,10 +65,10 @@ export async function liquidity({
      const amount1_18dec = amount0_18dec * token0ToToken1Scaled / precision
      const amount1Desired = amount1_18dec * (10n ** BigInt(token1Decimals)) / precision
      
-     console.log(`Supply ${token0Symbol}/${token1Symbol}...`)
+     logger.addLog(`Supply ${token0Symbol}/${token1Symbol}...`)
      
      if(amount1Desired > token1Balance){
-          console.log(`Insufficient ${token1Symbol}!`)
+          logger.addLog(`Insufficient ${token1Symbol}!`)
           return
      }
 
@@ -91,32 +94,26 @@ export async function liquidity({
           ERC20ABI,
           signer,
           router,
-          amount: amount0Desired
+          amount: amount0Desired,
+          logger
      })
      await approve({
           tokenAddress: token1,
           ERC20ABI,
           signer,
           router,
-          amount: amount1Desired
+          amount: amount1Desired,
+          logger
      })
 
-     const contractRouter = new Contract(router, ifaceLiquidity, signer)
+     const contractLiquidity = new Contract(poolAddress, ifaceLiquidity, signer)
      try {
-          const tx = await contractRouter.multicall([encodedMint])
+          const tx = await contractLiquidity.mint(paramsMint)
           await tx.wait()
-          console.log(`Success! txhash: ${tx.hash}`)
+          logger.addLog(`Success! txhash: ${tx.hash}`)
      } catch (error) {
-          console.error(error)
+          console.error(`failed! ${error}`)
      }
-}
-
-interface ApproveParams {
-     tokenAddress: string,
-     ERC20ABI: InterfaceAbi,
-     signer: Wallet,
-     router: string,
-     amount: BigInt
 }
 
 async function approve({
@@ -124,15 +121,24 @@ async function approve({
      ERC20ABI,
      signer,
      router,
-     amount
-}:ApproveParams) {
-     const contract = new Contract(tokenAddress, ERC20ABI, signer)
-     console.log("Checking allowance...")
-     const allowance0 = await contract.allowance(signer.address, router)
-     if(allowance0 < amount){
-          console.log("Approving to router...")
-          const approve = await contract.approve(router, amount)
-          await approve.wait()
-          console.log(`txhash: ${approve.hash}`)
+     amount,
+     logger
+}: {
+     tokenAddress: string,
+     ERC20ABI: any,
+     signer: Wallet,
+     router: string,
+     amount: bigint,
+     logger: RealtimeLogger
+}) {
+     const contractERC20 = new Contract(tokenAddress, ERC20ABI, signer)
+     
+     logger.addLog("Checking allowance...")
+     const allowance = await contractERC20.allowance(signer.address, router)
+     if(allowance < amount){
+          logger.addLog("Approving to router...")
+          const approveTx = await contractERC20.approve(router, amount)
+          await approveTx.wait()
+          logger.addLog(`txhash: ${approveTx.hash}`)
      }
 }

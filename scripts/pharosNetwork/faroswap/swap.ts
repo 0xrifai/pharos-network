@@ -1,10 +1,11 @@
 import { Contract, formatUnits, JsonRpcProvider, parseUnits, Wallet } from "ethers"
-import { fetchWithProxyUndici } from "@scripts/utils/ip"
+import { fetchWithUndici } from "@scripts/utils/ip"
 import { tokenBalance } from "@scripts/utils/balance"
 import { approve } from "@scripts/utils/approve"
 import ERC29ABI from "@scripts/lib/ERC20.json"
 import * as dotenv from "dotenv"
 import path from "path"
+import { RealtimeLogger } from "@/scripts/utils/realtime-logger"
 
 
 const headers = {
@@ -31,7 +32,8 @@ interface SwapParams {
   amountIn_inPercent: number,
   provider: JsonRpcProvider,
   dirname: string,
-  slippageUrl: string
+  slippageUrl: string,
+  logger: RealtimeLogger
 }
 // Router contract address and ABI
 const routerAddress = "0x3541423f25a1ca5c98fdbcf478405d3f0aad1164"
@@ -49,6 +51,7 @@ export async function swap({
   provider,
   dirname,
   slippageUrl,
+  logger
 }:SwapParams) {
   dotenv.config({path: path.join(dirname, ".env")})
   const { PROXY_URL = "" } = process.env!
@@ -71,9 +74,8 @@ export async function swap({
   
 
   try {
-    const getSpenderAddress = await fetchWithProxyUndici({
+    const getSpenderAddress = await fetchWithUndici({
       url: urlSpenderAddress,
-      proxyUrl: PROXY_URL,
       method: "GET",
       headers
     })
@@ -83,14 +85,14 @@ export async function swap({
       ERC20ABI: ERC29ABI,
       signer,
       router: spender.data.targetApproveAddr,
-      amount: amountIn
+      amount: amountIn,
+      logger
     })
     
     deadline = Math.floor(Date.now() / 1000) + 60 * 20
     const url = `https://api.dodoex.io/route-service/v2/widget/getdodoroute?chainId=688688&deadLine=${deadline}&apikey=a37546505892e1a952&slippage=${slippageUrl}&source=dodoV2AndMixWasm&toTokenAddress=${tokenOut}&fromTokenAddress=${tokenIn}&userAddr=${signer.address}&estimateGas=true&fromAmount=${amountIn}`
-    const res = await fetchWithProxyUndici({
+    const res = await fetchWithUndici({
       url: url,
-      proxyUrl: PROXY_URL,
       method: "GET",
       headers
     })
@@ -103,7 +105,7 @@ export async function swap({
 
     const expectedOut = parseUnits(truncateDecimals(safeAmount,decimals), decimals)
     const minOut = parseUnits(formatUnits(BigInt(response.data.minReturnAmount),decimals), decimals)
-    console.log(`expectedOut: ${formatUnits(expectedOut, decimals)}, minOut: ${formatUnits(minOut, decimals)}, amountIn: ${formatUnits(amountIn, decimalsTokenIn)}`)
+    logger.addLog(`expectedOut: ${formatUnits(expectedOut, decimals)}, minOut: ${formatUnits(minOut, decimals)}, amountIn: ${formatUnits(amountIn, decimalsTokenIn)}`)
     const dexes: string[] = []
     const path: string[] = []
     const adapters: string[] = []
@@ -141,7 +143,7 @@ export async function swap({
     }
     const permit = "0x" + "00".repeat(64)
     const id = BigInt(deadline)
-    console.log(`Swapping ${symbolTokenIn}/${symbolTokenOut}`)
+    logger.addLog(`Swapping ${symbolTokenIn}/${symbolTokenOut}`)
     const router = new Contract(routerAddress, routerAbi, signer)
     const nonce = await signer.getNonce()
     if(expectedOut > minOut){
@@ -162,9 +164,9 @@ export async function swap({
         nonce
       })
       await tx.wait()
-      console.log(`Success! txhash: ${tx.hash}`)
+      logger.addLog(`Success! txhash: ${tx.hash}`)
     }else{
-      console.log("ExpectedOut less than minOut")
+      logger.addLog("ExpectedOut less than minOut")
     }
   } catch (error) {
     console.error(error)

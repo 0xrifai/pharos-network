@@ -1,16 +1,17 @@
-import { failed, success } from "@scripts/utils/console"
 import { parseUnits, toBeHex, Wallet, zeroPadValue } from "ethers"
 
 interface CraftParams {
      signer: Wallet,
      router: string,
-     selector: string
+     selector: string,
+     logger: any
 }
 
 export async function craftTokens({
      signer,
      router,
-     selector
+     selector,
+     logger
 }:CraftParams) {
      const amount = parseUnits("100", 18)
      const padded = zeroPadValue(toBeHex(amount), 32)
@@ -21,9 +22,9 @@ export async function craftTokens({
                data: callData
           })
           await tx.wait()
-          success({hash: tx.hash})
+          logger.addSuccess(`txhash: ${tx.hash}`)
      } catch (error) {
-          failed({errorMessage: error})
+          logger.addError(`Error in craftTokens: ${error}`)
           return
      }
 }

@@ -1,4 +1,5 @@
-import { fetchWithProxyUndici } from "@scripts/utils/ip"
+import { globalLogger } from "@/scripts/utils/realtime-logger"
+import { fetchWithUndici } from "@scripts/utils/ip"
 
 interface RandomUserParams {
      PROXY_URL: string
@@ -13,11 +14,10 @@ const headers = {
 export async function randomUser({
      PROXY_URL = ""
 }: RandomUserParams) {
-     console.log("Generating random domain...")
+     globalLogger.addLog("Generating random domain...")
      const url = "https://randomuser.me/api/?nat=us&randomapi"
-     const response = await fetchWithProxyUndici({
+     const response = await fetchWithUndici({
           url,
-          proxyUrl: PROXY_URL,
           method: "GET",
           headers
      })

@@ -1,23 +1,25 @@
 import * as dotenv from "dotenv"
 import path from "path"
-import { commit } from "./commit"
 import { Contract, JsonRpcProvider, Wallet } from "ethers"
 import { abiPNS, resolverAddress, router } from "./data"
-import { success } from "@scripts/utils/console"
 import { sleep } from "@scripts/utils/time"
+import { RealtimeLogger } from "@/scripts/utils/realtime-logger"
+import { commit } from "./commit"
 
 interface RegisterPns {
      baseDir: string,
      signer: Wallet,
      days: number,
-     provider: JsonRpcProvider
+     provider: JsonRpcProvider,
+     logger: RealtimeLogger
 }
 
 export async function register({
      baseDir,
      signer,
      days,
-     provider
+     provider,
+     logger
 }: RegisterPns) {
      dotenv.config({ path: path.join(baseDir, ".env") })
      const { PROXY_URL = "" } = process.env!
@@ -25,17 +27,18 @@ export async function register({
           PROXY_URL,
           signer,
           days,
-          provider
+          provider,
+          logger
      })
      if (!committing.isCommitted) {
-          console.log(committing.messages)
+          logger.addLog(`${committing.messages || "Error committing domain!"}`)
           return
      }
      const { price, name, duration, secret, encodedData } = committing
-     console.log("Waiting for register!")
+     logger.addLog("Waiting for register!")
      await sleep(70000)
      const contract = new Contract(router, abiPNS, signer)
-     console.log("Registering...")
+     logger.addLog("Registering...")
      const register = await contract.register(
           name,
           signer.address,
@@ -50,5 +53,7 @@ export async function register({
           }
      )
      await register.wait()
-     success({ hash: register.hash })
+     logger.addSuccess(`txhash: ${register.hash}`)
+     logger.addSuccess("PNS registered successfully")
 }
+

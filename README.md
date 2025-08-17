@@ -1,223 +1,175 @@
+# Pharos Network Automation Tools
 
-
-
-# Pharos Network Swap and Liquidity Bot
-
-This project is a simple automated script to interact with the **Pharos Network**, performing token swaps and liquidity-related operations.
+A comprehensive web application for automating various operations on the Pharos Network ecosystem, including DeFi protocols, trading, and staking operations.
 
 ## Features
 
-- Token Swapping on Pharos Network
-- Liquidity Management
-- Headless execution using `screen`
-- Configurable private key and loop count for batch operations
+### 🏦 Autostaking Operations
+- **Autostaking Deposit**: Automated deposit via AI advisor recommendations
+- **Autostaking Faucet**: Automated faucet operations
+- **Autostaking Withdraw**: Automated withdrawal from all vaults
 
----
+### 🔄 Swap Operations
+- **Faroswap**: USDC and WPHRS swaps
+- **Zenith Finance**: USDC, USDT, and WPHRS swaps
 
-## Getting Started
+### 💧 Liquidity Operations
+- **Faroswap**: Add USDC and USDT liquidity
+- **Zenith Finance**: Add USDC and WPHRS liquidity
 
+### 📈 Trading
+- **CFD Trading**: Automated CFD position opening
 
-### 1. Clone the Repository
+### 🌊 Other Protocols
+- **Rwafi Aquaflux**: Aquaflux minting automation
+- **PNS**: Pharos Name Service registration
+- **Primus**: Primus protocol automation
 
+## Prerequisites
+
+- Node.js 18+ 
+- pnpm package manager
+- Private key for wallet operations
+
+## Installation
+
+1. Clone the repository:
 ```bash
-git clone https://github.com/takachan0012/pharos-network.git
-```
-
-### 2. Navigate to the Project Directory
-
-```bash
+git clone <repository-url>
 cd pharos-network
 ```
 
-### 3. Install Dependencies
-
+2. Install dependencies:
 ```bash
-npm install
+pnpm install
 ```
 
-### 4. Set Environment Variables
-
-setup private key
+3. Set up environment variables:
 ```bash
-echo PRIVATE_KEY=your_private_key_here >> main/.env
-```
-setup loop count ( how many time you will run script in main.ts )
-```bash
-echo LOOP_COUNT=your_loop_count_here >> main/.env
-```
-setup amount in percent, it set for each tx of your asset. for example use 1% from asset balance
-```bash
-echo AMOUNT_IN_PERCENT=1 >> main/.env
-```
-set timeout in milisecond, it set for waiting next tx. for example below, next tx will be done in ranges 1minute to 2minutes
-```bash
-echo TIMEOUT_MIN_MS=60000 >> main/.env
-echo TIMEOUT_MAX_MS=120000 >> main/.env
-```
-setup Autostaking Access token
-open https://autostaking.pro/?env=pharos, connect wallet > open devmode > tab console, paste code below
-```bash
-localStorage.getItem("token")
-```
-copy that value token, then run in terminal
-```bash
-echo AUTOSTAKING_TOKEN="your_token_here" >> main/.env
+cp .env-example .env
 ```
 
-**Optional** Set Rpc Url
-```bash
-echo RPC_URL=your_rpc_url_here >> main/.env
+4. Edit `.env` file with your configuration:
+```env
+# Private Key (required)
+PRIVATE_KEY=your_private_key_here
+
+# RPC Configuration
+RPC_URL=https://rpc.pharosnetwork.com
+
+# Loop Configuration
+LOOP_COUNT=1
+
+# Timeout Configuration (in milliseconds)
+TIMEOUT_MIN_MS=1000
+TIMEOUT_MAX_MS=3000
+
+# Amount Configuration (percentage)
+AMOUNT_IN_PERCENT=100
+
+# Optional: Proxy and Token Configuration
+# PROXY_URL=
+# AUTOSTAKING_TOKEN=
 ```
 
-### 5. Create a New Screen Session
+## Usage
 
+### Development
 ```bash
-screen -S pharos
+pnpm run dev
 ```
 
-### 6. Start the Bot
-
-#### Command lists
-
-##### Rwafi Aquaflux
-
+### Production Build
 ```bash
-npm run rwafiAquaflux
+pnpm run build
+pnpm start
 ```
 
-##### Autostaking
+## API Endpoints
 
-###### faucet
+All automation operations are available via REST API endpoints:
 
-```bash
-npm run autostakingFaucet
+### Autostaking
+- `POST /api/autostaking-deposit` - Deposit via AI advisor
+- `POST /api/autostaking-faucet` - Faucet operations
+- `POST /api/autostaking-withdraw` - Withdraw from all vaults
+
+### Faroswap
+- `POST /api/faroswap-usdc-swap` - USDC swaps
+- `POST /api/faroswap-wphrs-swap` - WPHRS swaps
+- `POST /api/faroswap-usdc-liquidity` - Add USDC liquidity
+- `POST /api/faroswap-usdt-liquidity` - Add USDT liquidity
+
+### Zenith Finance
+- `POST /api/zenith-usdc-swap` - USDC swaps
+- `POST /api/zenith-usdt-swap` - USDT swaps
+- `POST /api/zenith-wphrs-swap` - WPHRS swaps
+- `POST /api/zenith-usdc-liquidity` - Add USDC liquidity
+- `POST /api/zenith-wphrs-liquidity` - Add WPHRS liquidity
+
+### Other Protocols
+- `POST /api/cfd-trading` - CFD trading
+- `POST /api/rwafi-aquaflux` - Aquaflux minting
+- `POST /api/pns` - PNS registration
+- `POST /api/primus` - Primus automation
+
+## API Request Format
+
+All endpoints accept JSON requests with the following parameters:
+
+```json
+{
+  "rpcUrl": "https://rpc.pharosnetwork.com",
+  "loopCount": 1,
+  "timeoutMinMs": 1000,
+  "timeoutMaxMs": 3000,
+  "amountInPercent": 100
+}
 ```
 
-###### deposit
+## Security
 
-```bash
-npm run autostakingDeposit
+- Private keys are read from environment variables
+- No private keys are stored in the application
+- All sensitive data should be kept secure
+- SSL certificate verification can be disabled for external API calls if needed
+
+## Troubleshooting
+
+### SSL/TLS Errors
+If you encounter SSL certificate errors when making external API calls, you can disable SSL verification by setting:
+```env
+NODE_TLS_REJECT_UNAUTHORIZED=0
+```
+**Warning**: This should only be used in development or trusted environments.
+
+## Project Structure
+
+```
+pharos-network/
+├── app/                    # Next.js app directory
+│   ├── api/               # API routes
+│   ├── globals.css        # Global styles
+│   ├── layout.tsx         # Root layout
+│   └── page.tsx           # Home page
+├── main/                  # Original automation scripts
+├── scripts/               # Utility functions and contracts
+├── contracts/             # Smart contract definitions
+└── ignition/              # Deployment modules
 ```
 
-###### withdraw
+## Contributing
 
-```bash
-npm run autostakingWithdraw
-```
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
 
-##### CFD Trading / Brokex
+## License
 
-```bash
-npm run openCfdTrade
-```
+This project is licensed under the MIT License.
 
-##### Faroswap
+## Disclaimer
 
-###### USDC Liquidity
-
-```bash
-npm run faroswapUsdcLiquidity
-```
-
-###### USDT Liquidty
-
-```bash
-npm run faroswapUsdtLiquidty
-```
-
-###### USDC Swap
-
-```bash
-npm run faroswapUsdcSwap
-```
-
-###### WPHRS Swap
-
-```bash
-npm run faroswapWphrsSwap
-```
-
-##### Pharos Name Service
-
-```bash
-npm run pns
-```
-
-##### Primus
-
-```bash
-npm run primus
-```
-
-##### Zenith
-
-###### USDC Liquidity
-
-```bash
-npm run zenithUsdcLiquidity
-```
-
-###### WPHRS Liquidity
-
-```bash
-npm run zenithWphrsLiquidity
-```
-
-###### USDC Swap
-
-```bash
-npm run zenithUsdcSwap
-```
-
-###### USDT Swap
-
-```bash
-npm run zenithUsdtSwap
-```
-
-###### WPHRS Swap
-
-```bash
-npm run zenithWphrsSwap
-```
-
-### 7. Detach the Screen Session
-Press: Ctrl + A, then D
-
-### 8. Reattach the Screen Session
-
-```bash
-screen -R pharos
-```
-
-# Done!
-Your bot is running in the background on the Pharos Network.
-
-⚠️ **NOTES** 
-- Make sure your wallet is funded with enough gas (PHRS). 
-     - list faucet: 
-          - https://testnet.pharosnetwork.xyz/
-          - https://web3.okx.com/ru/faucet/pharos/100013
-          - https://newshare.bwb.global/en/earnCoinsTasks?uuid=6b728693-35b6-4892-9991-a45e63aaf2a1&_nocache=true&_nobar=true&_needChain=eth
-          - https://zan.top/faucet/pharos
-          - https://www.gas.zip/
-- Use at your own risk. Test carefully on testnet.
-- This project for educational and testing purposes only.
-
-
-Coffee: https://trakteer.id/Winsnipsupport/tip
-
-
-## **Join Telegram Winsnip**
-
-Stay updated and connect with the Winsnip community:
-
-Channel: https://t.me/winsnip
-
-Group Chat: https://t.me/winsnip_hub
-
-This ensures users can join the Telegram community easily and stay engaged with updates and discussions.
-
-
-
-## **Have suggestions or improvements? Feel free to contribute!**
+This software is for educational and automation purposes. Use at your own risk. Always verify transactions before execution and ensure you understand the risks involved in DeFi operations.

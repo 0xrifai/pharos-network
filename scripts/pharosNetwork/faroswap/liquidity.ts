@@ -12,6 +12,7 @@ interface LiquidityParams {
   signer: Wallet,
   amountIn_inPercent: number,
   provider: JsonRpcProvider,
+  logger: any
 }
 // Router contract address and ABI
 const routerAddress = "0x4b177aded3b8bd1d5d747f91b9e853513838cd49"
@@ -25,6 +26,7 @@ export async function createLiquidity({
   signer,
   amountIn_inPercent,
   provider,
+  logger
 }:LiquidityParams) {
   const pool = new Contract(poolAddress, liquidityABI, signer)
   const [baseToken, quoteToken, baseRes, quoteRes] = await pool.getPMMState()
@@ -55,25 +57,27 @@ export async function createLiquidity({
       ERC20ABI: ERC29ABI,
       signer,
       router: spender,
-      amount: amountIn
+      amount: amountIn,
+      logger
     })
     await approve({
       tokenAddress: tokenOut,
       ERC20ABI: ERC29ABI,
       signer,
       router: spender,
-      amount: minOut
+      amount: minOut,
+      logger
     })
     
     const id = BigInt(deadline)
-    console.log(`Suplying ${symbolTokenIn}/${symbolTokenOut} to ${poolAddress}`)
+    logger.addLog(`Suplying ${symbolTokenIn}/${symbolTokenOut} to ${poolAddress}`)
     const router = new Contract(routerAddress, liquidityABI, signer)
     
     const nonce = await signer.getNonce()
     const baseMinAmount = BigInt(Math.floor(Number(amountIn) * (1 - slippage)));   // 999_001
     const quoteMinAmount = BigInt(Math.floor(Number(minOut) * (1 - slippage))); // 999_000
 
-    console.log(`amountIn: ${formatUnits(amountIn, decimalsTokenIn)}, minOut: ${formatUnits(minOut, decimalsTokenOut)}, baseMinAmount: ${formatUnits(baseMinAmount, decimalsTokenIn)}, quoteMinAmount: ${formatUnits(quoteMinAmount, decimalsTokenOut)}`)
+    logger.addLog(`amountIn: ${formatUnits(amountIn, decimalsTokenIn)}, minOut: ${formatUnits(minOut, decimalsTokenOut)}, baseMinAmount: ${formatUnits(baseMinAmount, decimalsTokenIn)}, quoteMinAmount: ${formatUnits(quoteMinAmount, decimalsTokenOut)}`)
 
     const tx = await router.addDVMLiquidity(
       poolAddress,

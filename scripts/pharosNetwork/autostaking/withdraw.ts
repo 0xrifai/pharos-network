@@ -6,21 +6,24 @@ interface MulticallParams {
      wallet: Wallet,
      vaultAddress: string,
      router: string,
-     amount: bigint
+     amount: bigint,
+     logger: any
 }
 
 export async function withdrawFromVault({
      wallet,
      vaultAddress,
      router,
-     amount
+     amount,
+     logger
 }: MulticallParams) {
      const iface = new Interface(VaultMulticall_v2Abi)
      await approve({
           tokenAddress: vaultAddress,
           signer: wallet,
           router,
-          amount
+          amount: amount,
+          logger
      })
      const encodedWithdraw = iface.encodeFunctionData("withdrawFromVault", [
           vaultAddress,

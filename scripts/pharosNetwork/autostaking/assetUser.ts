@@ -1,23 +1,24 @@
-import { fetchWithProxyUndici } from "@scripts/utils/ip"
+import { fetchWithUndici } from "@scripts/utils/ip"
 import { headers } from "./headers"
 
 interface AssetUser {
      PROXY_URL: string,
      AUTOSTAKING_TOKEN: string,
-     walletAddress: string
+     walletAddress: string,
+     logger: any
 }
 
 
 export async function assetUser({
      PROXY_URL,
      AUTOSTAKING_TOKEN,
-     walletAddress
+     walletAddress,
+     logger
 }: AssetUser) {
      console.log("Fetching user positions...")
      const assetUrl = `https://asia-east2-auto-staking.cloudfunctions.net/auto_staking_pharos_v4/user/positions?user=${walletAddress}&env=pharos`
-     const res = await fetchWithProxyUndici({
+     const res = await fetchWithUndici({
           url: assetUrl,
-          proxyUrl: PROXY_URL,
           method: "GET",
           headers: {
                ...headers,
@@ -25,7 +26,7 @@ export async function assetUser({
           }
      })
      if(res.status != 200) {
-          console.log(res.body)
+          logger.addError(res.body)
           return false
      }
      return {

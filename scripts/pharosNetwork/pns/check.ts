@@ -1,4 +1,4 @@
-import { fetchWithProxyUndici } from "@scripts/utils/ip"
+import { fetchWithUndici } from "@scripts/utils/ip"
 import { Contract, JsonRpcProvider, namehash } from "ethers"
 import { resolverAddress } from "./data"
 
@@ -29,9 +29,8 @@ export async function isAvailable({
 }: Checker) {
      const id = namehash(domain)
      const url = "https://graphql.pharosname.com/"
-     const response = await fetchWithProxyUndici({
+     const response = await fetchWithUndici({
           url,
-          proxyUrl: PROXY_URL,
           method: "POST",
           headers,
           body: JSON.stringify({
@@ -41,9 +40,8 @@ export async function isAvailable({
      })
      const json = JSON.parse(response.body)
      if(json.data.domain == null){
-          const responseIsResolverExist = await fetchWithProxyUndici({
+          const responseIsResolverExist = await fetchWithUndici({
                     url,
-                    proxyUrl: PROXY_URL,
                     method: "POST",
                     headers,
                     body: JSON.stringify({

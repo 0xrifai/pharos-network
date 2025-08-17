@@ -3,7 +3,6 @@ import { randomUser } from "./generate"
 import { Contract, formatEther, JsonRpcProvider, keccak256, namehash, randomBytes, Wallet } from "ethers"
 import { router, abiPNS, resolverAbi } from "./data"
 import { sleep } from "@scripts/utils/time"
-import { success } from "@scripts/utils/console"
 import { coinBalance } from "@scripts/utils/balance"
 import { resolverAddress } from "./data"
 import { Interface } from "ethers"
@@ -12,7 +11,8 @@ interface CommitParams {
      PROXY_URL: string,
      signer: Wallet,
      days: number,
-     provider: JsonRpcProvider
+     provider: JsonRpcProvider,
+     logger: any
 }
 interface ReturnCommit {
      isCommitted: boolean,
@@ -30,7 +30,8 @@ export async function commit({
      PROXY_URL,
      signer,
      days,
-     provider
+     provider,
+     logger
 }: CommitParams): Promise<ReturnCommit> {
      let domain: string = ""
      let is_Available: boolean = false
@@ -44,7 +45,7 @@ export async function commit({
                PROXY_URL
           })
           if (!is_Available) {
-               console.log(`${domain} not available, waiting for regenerate!`)
+               logger.addLog(`${domain} not available, waiting for regenerate!`)
                await sleep(5000)
           }
      }
@@ -64,7 +65,7 @@ export async function commit({
           coinType,
           signer.address
      ])
-     console.log(`Selected domain: ${domain}`)
+     logger.addLog(`Selected domain: ${domain}`)
 
      const price = await priceDomain({
           provider,
@@ -78,7 +79,7 @@ export async function commit({
           provider
      })
      if (coin_balance > formatEther(price)) {
-          console.log("Committing...")
+          logger.addLog("Committing...")
           const contractCommit = new Contract(router, abiPNS, signer)
           commitment = await contractCommit.makeCommitment(
                label,
@@ -92,7 +93,7 @@ export async function commit({
           )
           const tx = await contractCommit.commit(commitment)
           await tx.wait()
-          success({ hash: tx.hash })
+          logger.addSuccess(`txhash: ${tx.hash}`)
           return {
                isCommitted: true,
                commitment,
@@ -104,6 +105,7 @@ export async function commit({
                encodedData
           }
      } else {
+					logger.addError(`Insufficient balance! Price: ${formatEther(price)}, Your balance: ${coin_balance}`)
           const messages = `Insufficient balance! Price: ${formatEther(price)}, Your balance: ${coin_balance}`
           return {
                isCommitted: false,

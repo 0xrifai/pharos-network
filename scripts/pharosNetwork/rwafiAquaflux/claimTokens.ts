@@ -1,25 +1,25 @@
-import { failed, success } from "@scripts/utils/console"
 import { Contract, Wallet } from "ethers"
-
 
 interface ClaimParams {
      signer: Wallet,
      router: string,
      abi: string[],
+     logger: any
 }
 
 export async function claimTokens({
      signer,
      router,
-     abi
+     abi,
+		 logger
 }:ClaimParams) {
      const contract = new Contract(router, abi, signer)
      try {
           const tx = await contract.claimTokens()
           await tx.wait()
-          success({hash: tx.hash})
+          logger.addSuccess(`txhash: ${tx.hash}`)
      } catch (error) {
-          failed({errorMessage: error})
+          logger.addError(`Failed to claim tokens: ${error}`)
           return
      }
 }

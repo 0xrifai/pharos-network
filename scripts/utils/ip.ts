@@ -1,108 +1,114 @@
 import "dotenv/config"
-import axios, { AxiosRequestConfig, RawAxiosRequestHeaders, Method} from "axios"
-import { SocksProxyAgent } from "socks-proxy-agent"
-import { HttpsProxyAgent } from "https-proxy-agent"
-import { request, ProxyAgent } from "undici"
-import * as zlib from "zlib"
 
-function getProxyAgent(proxyUrl: string){
-    if(proxyUrl.startsWith("socks4://") || proxyUrl.startsWith("socks5://")){
-        return new SocksProxyAgent(proxyUrl)
-    }else if(proxyUrl.startsWith("http://") || proxyUrl.startsWith("https://")){
-        return new HttpsProxyAgent(proxyUrl)
-    }
+interface FetchResponse {
+  status: number
+  headers: Record<string, string>
+  body: string
 }
 
-async function fetchWithProxyAxios(
+async function fetchWithAxios(
     url: string, 
-    proxyUrl: string = "", 
-    config: AxiosRequestConfig = {},
-    headers: RawAxiosRequestHeaders = {},
-    method: Method = "GET"
-) {
-  const isUsingProxy = proxyUrl.trim() !== ""
-  const agent = isUsingProxy?  getProxyAgent(proxyUrl) : undefined
+    config: any = {},
+    headers: Record<string, string> = {},
+    method: string = "GET"
+): Promise<FetchResponse> {
   try {
-    return await axios.request({
+    const response = await fetch(url, {
       method,
-      url,  
-      ...config,
-      ...(isUsingProxy && {
-        httpAgent: agent,
-        httpsAgent: agent,
-      }),
-      proxy: false,
-      timeout: 5000,
-      headers
+      headers,
+      body: config.body || null,
+      signal: AbortSignal.timeout(10000)
     })
+    
+    const body = await response.text()
+    
+    return {
+      status: response.status,
+      headers: Object.fromEntries(response.headers.entries()),
+      body
+    }
   } catch (error) {
-    // Optional: log or enrich the error
-    throw new Error(`Failed to fetch via proxy ${proxyUrl}: ${error}`)
+    throw new Error(`Failed to fetch: ${error}`)
   }
 }
 
 type HttpMethod = "GET" | "POST" | "PUT" | "DELETE" | "PATCH" | "HEAD" | "OPTIONS"
 interface FetchOption {
   url:string,
-  proxyUrl?:string,
   method?: HttpMethod,
   headers?: Record<string, string>,
-  body?: string | Buffer | null
-
+  body?: string | Buffer | null,
+  proxyUrl?: string
 }
 
-async function fetchWithProxyUndici({
+async function fetchExternalAPI({
   url,
-  proxyUrl = "",
   method = "GET",
   headers = {},
-  body = null
-}:FetchOption) {
-  const isUsingProxy = proxyUrl.trim() !== ""
-  const agent = isUsingProxy ? new ProxyAgent(proxyUrl) : undefined
+  body = null,
+  proxyUrl = ""
+}: FetchOption): Promise<FetchResponse> {
   try {
-    const response = await request(url,{
+    const fetchOptions: any = {
       method,
       headers,
-      body,
-      dispatcher: agent,
-      maxRedirections: 3,
-      headersTimeout: 60000,
-      bodyTimeout: 120000    // optional, for body download
-
-    })
-    const chunks = [];
-    for await (const chunk of response.body) {
-      chunks.push(chunk);
+      body: body as string | null,
+      signal: AbortSignal.timeout(30000) // Increased timeout to 30 seconds
     }
 
-    const rawBuffer = Buffer.concat(chunks);
-
-    let text;
-    const encoding = response.headers["content-encoding"];
-
-    if (encoding === "gzip") {
-      text = zlib.gunzipSync(rawBuffer).toString("utf-8");
-    } else if (encoding === "br") {
-      text = zlib.brotliDecompressSync(rawBuffer).toString("utf-8");
-    } else {
-      text = rawBuffer.toString("utf-8");
+    // Add proxy support if proxyUrl is provided
+    if (proxyUrl) {
+      try {
+        const { HttpsProxyAgent } = require('https-proxy-agent')
+        fetchOptions.agent = new HttpsProxyAgent(proxyUrl)
+      } catch (error) {
+        console.warn('Proxy agent not available, proceeding without proxy')
+      }
     }
 
+    const response = await fetch(url, fetchOptions)
+    
+    const responseBody = await response.text()
+    
     return {
-      status: response.statusCode,
-      headers: response.headers,
-      body: text,
-    };
-
+      status: response.status,
+      headers: Object.fromEntries(response.headers.entries()),
+      body: responseBody,
+    }
   } catch (error) {
-    throw new Error(`Failed to fetch via ${proxyUrl || 'direct connection'}: ${error}`)
+    throw new Error(`Failed to fetch: ${error}`)
   }
 }
 
+async function fetchWithUndici({
+  url,
+  method = "GET",
+  headers = {},
+  body = null
+}:FetchOption): Promise<FetchResponse> {
+  try {
+    const response = await fetch(url, {
+      method,
+      headers,
+      body: body as string | null,
+      signal: AbortSignal.timeout(10000)
+    })
+    
+    const responseBody = await response.text()
+    
+    return {
+      status: response.status,
+      headers: Object.fromEntries(response.headers.entries()),
+      body: responseBody,
+    }
 
+  } catch (error) {
+    throw new Error(`Failed to fetch: ${error}`)
+  }
+}
 
 export {
-    fetchWithProxyAxios,
-    fetchWithProxyUndici
+    fetchWithAxios,
+    fetchWithUndici,
+    fetchExternalAPI
 }

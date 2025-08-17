@@ -2,7 +2,7 @@ import * as dotenv from "dotenv"
 import { JsonRpcProvider, Wallet } from "ethers"
 import path from "path"
 import { assetUser } from "./assetUser"
-import { fetchWithProxyUndici } from "@scripts/utils/ip"
+import { fetchWithUndici } from "@scripts/utils/ip"
 import { headers } from "./headers"
 import { tokenBalance } from "@scripts/utils/balance"
 import { sleep } from "@scripts/utils/time"
@@ -13,7 +13,8 @@ import { pharosTokenAddress } from "@scripts/lib/data"
 interface Advisor {
      baseDir: string,
      wallet: Wallet,
-     provider: JsonRpcProvider
+     provider: JsonRpcProvider,
+     logger: any
 }
 
 const assetAddress = [pharosTokenAddress[0].address, pharosTokenAddress[1].address, mockUSD]
@@ -21,7 +22,8 @@ const assetAddress = [pharosTokenAddress[0].address, pharosTokenAddress[1].addre
 export async function advisor({
      baseDir,
      wallet,
-     provider
+     provider,
+     logger
 }: Advisor) {
      dotenv.config({ path: path.join(baseDir, ".env") })
      const { PROXY_URL = "", AUTOSTAKING_TOKEN = "" } = process.env!
@@ -29,7 +31,8 @@ export async function advisor({
      const asset = await assetUser({
           PROXY_URL,
           AUTOSTAKING_TOKEN,
-          walletAddress: wallet.address
+          walletAddress: wallet.address,
+          logger
      })
      if(!asset) return asset
      const tokens: string[] = []
@@ -88,9 +91,8 @@ export async function advisor({
      await sleep(10000)
 
      console.log("Fetching advisor...")
-     const resAdvisor = await fetchWithProxyUndici({
+     const resAdvisor = await fetchWithUndici({
           url: advisorUrl,
-          proxyUrl: PROXY_URL,
           method: "POST",
           headers: {
                ...headers,

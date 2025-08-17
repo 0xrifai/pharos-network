@@ -1,5 +1,5 @@
 export const rpcList = {
-     pharos_official: "https://testnet.dplabs-internal.com"
+     pharos_official: "http://rpc.pharosnetwork.com"
 }
 
 export const pharosTokenAddress = [

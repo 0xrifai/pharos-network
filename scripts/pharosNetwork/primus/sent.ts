@@ -2,15 +2,16 @@ import { tipAbi } from "@scripts/lib/data"
 import { randomAmount } from "@scripts/utils/amount"
 import { Contract, parseUnits, Wallet } from "ethers"
 import { users } from "./data"
-import { success } from "@scripts/utils/console"
 
 interface TipParams {
-     wallet: Wallet
+     wallet: Wallet,
+     logger: any
 }
 
 const routerAddress = "0xd17512b7ec12880bd94eca9d774089ff89805f02"
 export async function tip({
-     wallet
+     wallet,
+     logger
 }:TipParams) {
      const index = Math.floor(randomAmount({
           min: 0,
@@ -26,14 +27,14 @@ export async function tip({
      const sentTo = [ 'x', receiver, parseUnits(`${amount}`), [] ]
 
      const contract = new Contract(routerAddress, tipAbi, wallet)
-     console.log(`sending ${amount} to ${receiver}...`)
+     logger.addLog(`sending ${amount} to ${receiver}...`)
      try {
           const tx = await contract.tip(token, sentTo, {
                value: parseUnits(`${amount}`)
           })
           await tx.wait()
-          success({hash: tx.hash})
+          logger.addSuccess(`txhash: ${tx.hash}`)
      } catch (error) {
-          console.error(error)
+          logger.addError(`Error in tip: ${error}`)
      }
 }
