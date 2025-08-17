@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { loggerManager } from '@/scripts/utils/realtime-logger'
 import { setupProvider } from '@/scripts/utils/provider'
-import { ownAddress } from '@/scripts/utils/wallet'
 import { pharosTokenAddress } from '@/scripts/lib/data'
 import { createLiquidity } from '@/scripts/pharosNetwork/faroswap/liquidity'
 import { pharosPoolAddressPMMFaroswap } from '@/scripts/lib/data'
@@ -12,13 +11,20 @@ export async function POST(request: NextRequest) {
   let taskId: string | undefined
   
   try {
-    const {  rpcUrl, loopCount = 1, timeoutMinMs = 1000, timeoutMaxMs = 3000, amountInPercent = 100, taskId: requestTaskId } = await request.json()
+    const { privateKey, rpcUrl, loopCount = 1, timeoutMinMs = 10000, timeoutMaxMs = 20000, amountInPercent = 100, slippage = 0.15, taskId: requestTaskId } = await request.json()
 
     taskId = requestTaskId
 
     if (!taskId) {
       return NextResponse.json(
         { error: 'Task ID is required' },
+        { status: 400 }
+      )
+    }
+
+    if (!privateKey) {
+      return NextResponse.json(
+        { error: 'Private key is required' },
         { status: 400 }
       )
     }
@@ -37,15 +43,14 @@ export async function POST(request: NextRequest) {
       rpcUrl: rpcUrl || 'https://rpc.pharosnetwork.com'
     })
 
-    const wallet = ownAddress({
-      dirname: process.cwd(),
-      provider,
-      key: "PRIVATE_KEY"
-    })
+    // Create wallet directly from private key instead of using ownAddress function
+    const { Wallet } = await import('ethers')
+    const wallet = new Wallet(privateKey, provider)
 
     logger.addLog('Starting Faroswap USDT Liquidity automation...')
     logger.addLog(`Wallet Address: ${wallet.address}`)
     logger.addLog(`Network: ${rpcUrl || 'https://rpc.pharosnetwork.com'}`)
+    logger.addLog(`Slippage: ${slippage}%`)
 
     for (let index = 1; index <= loopCount; index++) {
       logger.addLog(`Task lp usdt ${index}/${loopCount}`)
@@ -62,17 +67,24 @@ export async function POST(request: NextRequest) {
         logger.addLog(`Creating liquidity for pool: ${poolAddress}`)
         logger.addLog(`Deadline: ${deadline}`)
         
-        await createLiquidity({
-          poolAddress: poolAddress,
-          tokenIn: usdtAddress,
-          tokenOut: wphrsAddress,
-          deadline,
-          signer: wallet.signer,
-          amountIn_inPercent: amountInPercent,
-          provider,
-          logger
-        })
-        logger.addSuccess(`Liquidity created successfully for pool: ${poolAddress}`)
+        try {
+          await createLiquidity({
+            poolAddress: poolAddress,
+            tokenIn: usdtAddress,
+            tokenOut: wphrsAddress,
+            deadline,
+            signer: wallet,
+            amountIn_inPercent: amountInPercent,
+            provider,
+            logger,
+            slippage: slippage / 100 // Convert percentage to decimal
+          })
+          logger.addSuccess(`Liquidity created successfully for pool: ${poolAddress}`)
+        } catch (error) {
+          logger.addLog(`Error creating liquidity for pool ${poolAddress}: ${error}`)
+          // Continue with next pool instead of stopping entire process
+          continue
+        }
         
         let ms = randomAmount({
           min: timeoutMinMs,
@@ -88,22 +100,24 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: 'Faroswap USDT Liquidity automation completed successfully',
-      logs: logger.getLogs()
+      taskId: taskId
     })
 
   } catch (error) {
-    console.error('Error in faroswap-usdt-liquidity API:', error)
+    console.error('Error in faroswap-usdt-liquidity:', error)
     
-    // Try to log error if we have a logger
     if (taskId) {
       const logger = loggerManager.getLogger(taskId)
       if (logger) {
-        logger.addError(`Internal server error: ${error instanceof Error ? error.message : 'Unknown error'}`)
+        logger.addLog(`Error: ${error}`)
       }
     }
-    
+
     return NextResponse.json(
-      { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
+      { 
+        error: error instanceof Error ? error.message : 'Unknown error occurred',
+        taskId: taskId 
+      },
       { status: 500 }
     )
   }

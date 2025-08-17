@@ -1,5 +1,10 @@
 import { Contract, InterfaceAbi, Wallet } from "ethers"
-import ERC20ABI from "@scripts/lib/ERC20.json"
+const ERC20ABI = [
+  "function allowance(address owner, address spender) view returns (uint256)",
+  "function approve(address spender, uint256 amount) returns (bool)",
+  "function balanceOf(address account) view returns (uint256)",
+  "function transfer(address to, uint256 amount) returns (bool)"
+]
 import { RealtimeLogger } from "./realtime-logger"
 
 interface ApproveParams {
@@ -8,7 +13,7 @@ interface ApproveParams {
      signer: Wallet,
      router: string,
      amount: BigInt,
-     logger: RealtimeLogger
+     logger?: RealtimeLogger
 }
 
 export async function approve({
@@ -19,23 +24,45 @@ export async function approve({
      logger
 }:ApproveParams) {
      const contract = new Contract(tokenAddress, ERC20ABI, signer)
-     logger.addLog("Checking allowance...")
+     const logMessage = logger ? logger.addLog.bind(logger) : console.log
+     logMessage("Checking allowance...")
      const allowance = await contract.allowance(signer.address, router)
-     logger.addLog(allowance.toString())
+     logMessage(allowance.toString())
      if (allowance < amount) {
           if (allowance > 0n) {
-               logger.addLog("Resetting allowance to 0 first...")
-               const resetTx = await contract.approve(router, 0n)
-               await resetTx.wait()
-               logger.addLog(`Reset tx: ${resetTx.hash}`)
+               logMessage("Resetting allowance to 0 first...")
+               const resetTx = await contract.approve(router, 0n, {
+                    gasLimit: 100000,
+                    maxFeePerGas: 20000000000n, // 20 gwei max fee
+                    maxPriorityFeePerGas: 2000000000n // 2 gwei priority fee
+               })
+               
+               // Wait for reset transaction with timeout
+               await Promise.race([
+                    resetTx.wait(),
+                    new Promise((_, reject) => 
+                         setTimeout(() => reject(new Error('Reset transaction timeout')), 60000) // 1 minute timeout
+                    )
+               ])
+               logMessage(`Reset tx: ${resetTx.hash}`)
           }
 
-          logger.addLog("Approving new amount to spender...")
-          const approveTx = await contract.approve(router, amount)
-          await approveTx.wait()
-          logger.addLog(`Approve tx: ${approveTx.hash}`)
+          logMessage("Approving new amount to spender...")
+          const approveTx = await contract.approve(router, amount, {
+               gasLimit: 100000,
+               maxFeePerGas: 20000000000n, // 20 gwei max fee
+               maxPriorityFeePerGas: 2000000000n // 2 gwei priority fee
+          })
+          
+          // Wait for approve transaction with timeout
+          await Promise.race([
+               approveTx.wait(),
+               new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('Approve transaction timeout')), 60000) // 1 minute timeout
+               )
+          ])
+          logMessage(`Approve tx: ${approveTx.hash}`)
      } else {
-          logger.addLog("Sufficient allowance already approved.")
+          logMessage("Sufficient allowance already approved.")
      }
-
 }

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { loggerManager } from '@/scripts/utils/realtime-logger'
 import { setupProvider } from '@/scripts/utils/provider'
-import { ownAddress } from '@/scripts/utils/wallet'
 import { multicall } from '@/scripts/pharosNetwork/zenithFinance/swap'
 import { pharosTokenAddress, pharosPoolAddressZenith } from '@/scripts/lib/data'
 import { getPrice } from '@/scripts/utils/price'
@@ -15,13 +14,20 @@ export async function POST(request: NextRequest) {
   let taskId: string | undefined
   
   try {
-    const {  rpcUrl, loopCount = 1, timeoutMinMs = 1000, timeoutMaxMs = 3000, amountInPercent = 100, taskId: requestTaskId } = await request.json()
+    const { privateKey, rpcUrl, loopCount = 1, timeoutMinMs = 10000, timeoutMaxMs = 20000, amountInPercent = 1, slippage = 0.3, taskId: requestTaskId } = await request.json()
 
     taskId = requestTaskId
 
     if (!taskId) {
       return NextResponse.json(
         { error: 'Task ID is required' },
+        { status: 400 }
+      )
+    }
+
+    if (!privateKey) {
+      return NextResponse.json(
+        { error: 'Private key is required' },
         { status: 400 }
       )
     }
@@ -40,15 +46,14 @@ export async function POST(request: NextRequest) {
       rpcUrl: rpcUrl || 'https://rpc.pharosnetwork.com'
     })
 
-    const wallet = ownAddress({
-      dirname: process.cwd(),
-      provider,
-      key: "PRIVATE_KEY"
-    })
+    // Create wallet directly from private key instead of using ownAddress function
+    const { Wallet } = await import('ethers')
+    const wallet = new Wallet(privateKey, provider)
 
     logger.addLog(`Starting Zenith WPHRS Swap automation...`)
     logger.addLog(`Wallet Address: ${wallet.address}`)
     logger.addLog(`Network: ${rpcUrl || 'https://rpc.pharosnetwork.com'}`)
+    logger.addLog(`Slippage: ${slippage}%`)
 
     for (let index = 1; index <= loopCount; index++) {
       logger.addLog(`Task swap wphrs ${index}/${loopCount}`)
@@ -83,7 +88,7 @@ export async function POST(request: NextRequest) {
       logger.addLog(`WPHRS Balance: ${wphrsBalance} ${wphrsSymbol}`)
       logger.addLog(`USDC Balance: ${usdcSymbol}`)
 
-      const slippageTolerance = 0.003
+      const slippageTolerance = slippage / 100 // Convert percentage to decimal
       let priceScaled = BigInt(Math.floor(priceWphrsUsdc.tokenAToTokenB * Math.pow(10, Number(usdcDecimals))))
       let amountIn = wphrsBalance * BigInt(amountInPercent) / BigInt(100)
       let amountOut = (amountIn * priceScaled * BigInt(1000 - Math.floor(slippageTolerance * 1000))) / (BigInt(Math.pow(10, Number(wphrsDecimals))) * BigInt(1000))
@@ -98,27 +103,28 @@ export async function POST(request: NextRequest) {
         logger.addLog("Swapping WPHRS to USDC...")
         await multicall({
           router,
+          signer: wallet,
           tokenIn: wphrsAddress,
           tokenOut: usdcAddress,
           amountIn,
           amountOut,
           fee: priceWphrsUsdc.fee,
-          signer: wallet.signer,
           deadline,
           logger
         })
-        logger.addSuccess(`WPHRS to USDC swap completed!`)
+        logger.addSuccess("WPHRS to USDC swap completed")
       } catch (error) {
-        logger.addError(`Swap failed: ${error}`)
+        logger.addLog(`Error in WPHRS to USDC swap: ${error}`)
       }
 
-      const ms = randomAmount({
+      let ms = randomAmount({
         min: timeoutMinMs,
         max: timeoutMaxMs
       })
       logger.addLog(`Sleeping for ${ms}ms...`)
       await sleep(ms)
 
+      // Second swap: WPHRS to USDT (matching original logic)
       const poolAddressWphrsUsdt = pharosPoolAddressZenith.filter(pool => pool.pair == "USDT/PHRS")[0].address
       const usdtAddress = pharosTokenAddress.filter(item => item.name == "USDT")[0].address
 
@@ -130,44 +136,52 @@ export async function POST(request: NextRequest) {
           tokenB: usdtAddress
         },
         provider
-      });
+      })
+      logger.addLog(`WPHRS/USDT Price: ${priceWphrsUsdt.tokenAToTokenB}`)
 
-      ({ balance: wphrsBalance } = await tokenBalance({
+      // Get updated WPHRS balance after first swap
+      const updatedBalance = await tokenBalance({
         address: wallet.address,
         provider,
         tokenAddress: wphrsAddress
-      }))
-      let { symbol: usdtSymbol, decimals: usdtDecimals } = await tokenBalance({
+      })
+      wphrsBalance = updatedBalance.balance
+
+      const { symbol: usdtSymbol, decimals: usdtDecimals } = await tokenBalance({
         address: wallet.address,
         provider,
         tokenAddress: usdtAddress
       })
+
+      logger.addLog(`Updated WPHRS Balance: ${wphrsBalance} ${wphrsSymbol}`)
+      logger.addLog(`USDT Balance: ${usdtSymbol}`)
+
       priceScaled = BigInt(Math.floor(priceWphrsUsdt.tokenAToTokenB * Math.pow(10, Number(usdtDecimals))))
       amountIn = wphrsBalance * BigInt(amountInPercent) / BigInt(100)
       amountOut = (amountIn * priceScaled * BigInt(1000 - Math.floor(slippageTolerance * 1000))) / (BigInt(Math.pow(10, Number(wphrsDecimals))) * BigInt(1000))
-      
+
       logger.addLog(`SWAP ${wphrsSymbol}/${usdtSymbol}`)
       logger.addLog(`Amount In: ${amountIn} ${wphrsSymbol}`)
       logger.addLog(`Expected Amount Out: ${amountOut} ${usdtSymbol}`)
       logger.addLog(`Slippage: ${slippageTolerance * 100}%`)
       logger.addLog(`Deadline: ${deadline}`)
-      
+
       try {
         logger.addLog("Swapping WPHRS to USDT...")
         await multicall({
           router,
+          signer: wallet,
           tokenIn: wphrsAddress,
           tokenOut: usdtAddress,
           amountIn,
           amountOut,
           fee: priceWphrsUsdt.fee,
-          signer: wallet.signer,
           deadline,
           logger
         })
-        logger.addSuccess(`WPHRS to USDT swap completed!`)
+        logger.addSuccess("WPHRS to USDT swap completed")
       } catch (error) {
-        logger.addError(`Swap failed: ${error}`)
+        logger.addLog(`Error in WPHRS to USDT swap: ${error}`)
       }
     }
 
@@ -176,22 +190,24 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: 'Zenith WPHRS Swap automation completed successfully',
-      logs: logger.getLogs()
+      taskId: taskId
     })
 
   } catch (error) {
-    console.error('Error in zenith-wphrs-swap API:', error)
+    console.error('Error in zenith-wphrs-swap:', error)
     
-    // Try to log error if we have a logger
     if (taskId) {
       const logger = loggerManager.getLogger(taskId)
       if (logger) {
-        logger.addError(`Internal server error: ${error instanceof Error ? error.message : 'Unknown error'}`)
+        logger.addLog(`Error: ${error}`)
       }
     }
-    
+
     return NextResponse.json(
-      { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
+      { 
+        error: error instanceof Error ? error.message : 'Unknown error occurred',
+        taskId: taskId 
+      },
       { status: 500 }
     )
   }

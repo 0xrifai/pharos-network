@@ -91,7 +91,7 @@ async function fetchWithUndici({
       method,
       headers,
       body: body as string | null,
-      signal: AbortSignal.timeout(10000)
+      signal: AbortSignal.timeout(60000) // Increased timeout to 60 seconds like original
     })
     
     const responseBody = await response.text()

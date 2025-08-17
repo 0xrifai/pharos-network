@@ -1,5 +1,10 @@
 import { ethers, JsonRpcProvider } from "ethers"
-import ERC20ABI from "@scripts/lib/ERC20.json"
+const ERC20ABI = [
+  "function name() view returns (string)",
+  "function decimals() view returns (uint8)",
+  "function symbol() view returns (string)",
+  "function balanceOf(address account) view returns (uint256)"
+]
 
 interface Balance {
      address: string,

@@ -1,12 +1,13 @@
 import { Contract, formatUnits, JsonRpcProvider, parseUnits, Wallet } from "ethers"
-import { fetchWithUndici } from "@scripts/utils/ip"
-import { tokenBalance } from "@scripts/utils/balance"
-import { approve } from "@scripts/utils/approve"
-import ERC29ABI from "@scripts/lib/ERC20.json"
-import * as dotenv from "dotenv"
-import path from "path"
-import { RealtimeLogger } from "@/scripts/utils/realtime-logger"
-
+import { fetchWithUndici } from "../../utils/ip"
+import { tokenBalance } from "../../utils/balance"
+import { approve } from "../../utils/approve"
+const ERC29ABI = [
+  "function allowance(address owner, address spender) view returns (uint256)",
+  "function approve(address spender, uint256 amount) returns (bool)",
+  "function balanceOf(address account) view returns (uint256)",
+  "function transfer(address to, uint256 amount) returns (bool)"
+]
 
 const headers = {
         "Accept": "application/json, text/plain, */*",
@@ -31,16 +32,15 @@ interface SwapParams {
   signer: Wallet,
   amountIn_inPercent: number,
   provider: JsonRpcProvider,
-  dirname: string,
-  slippageUrl: string,
-  logger: RealtimeLogger
+  slippageUrl: string
+  logger: any
 }
+
 // Router contract address and ABI
 const routerAddress = "0x3541423f25a1ca5c98fdbcf478405d3f0aad1164"
 const routerAbi = [
   "function mixSwap(address tokenIn, address tokenOut, uint256 amountIn, uint256 minOut, uint256 expectedOut, address[] dexes, address[] path, address[] adapters, uint256 fee, bytes[] data, bytes permit, uint256 id)"
 ]
-
 
 export async function swap({
   tokenIn,
@@ -49,12 +49,9 @@ export async function swap({
   signer,
   amountIn_inPercent,
   provider,
-  dirname,
   slippageUrl,
   logger
 }:SwapParams) {
-  dotenv.config({path: path.join(dirname, ".env")})
-  const { PROXY_URL = "" } = process.env!
   const {balance: balanceTokenIn, symbol: symbolTokenIn, decimals: decimalsTokenIn} = await tokenBalance({
     address: signer.address,
     provider,
@@ -85,8 +82,7 @@ export async function swap({
       ERC20ABI: ERC29ABI,
       signer,
       router: spender.data.targetApproveAddr,
-      amount: amountIn,
-      logger
+      amount: amountIn
     })
     
     deadline = Math.floor(Date.now() / 1000) + 60 * 20
@@ -100,8 +96,9 @@ export async function swap({
     const resAmount = response.data.resAmount
     const decimals = response.data.targetDecimals
     
-    const slippage = 0.5
-    const safeAmount = applySlippage(resAmount, slippage)
+    // Use the user-provided slippage instead of hardcoded 0.5
+    const userSlippage = parseFloat(slippageUrl)
+    const safeAmount = applySlippage(resAmount, userSlippage)
 
     const expectedOut = parseUnits(truncateDecimals(safeAmount,decimals), decimals)
     const minOut = parseUnits(formatUnits(BigInt(response.data.minReturnAmount),decimals), decimals)
@@ -146,7 +143,10 @@ export async function swap({
     logger.addLog(`Swapping ${symbolTokenIn}/${symbolTokenOut}`)
     const router = new Contract(routerAddress, routerAbi, signer)
     const nonce = await signer.getNonce()
-    if(expectedOut > minOut){
+    
+    // Allow transaction when expectedOut >= minOut (changed from > to >=)
+    if(expectedOut >= minOut){
+      logger.addLog(`Executing swap with expectedOut: ${formatUnits(expectedOut, decimals)}, minOut: ${formatUnits(minOut, decimals)}`)
       const tx = await router.mixSwap(
         tokenIn,
         tokenOut,
@@ -164,19 +164,23 @@ export async function swap({
         nonce
       })
       await tx.wait()
-      logger.addLog(`Success! txhash: ${tx.hash}`)
+      logger.addSuccess(`Success! txhash: ${tx.hash}`)
     }else{
-      logger.addLog("ExpectedOut less than minOut")
+      logger.addError(`ExpectedOut (${formatUnits(expectedOut, decimals)}) less than minOut (${formatUnits(minOut, decimals)})`)
     }
   } catch (error) {
-    console.error(error)
+    logger.addError(`Error: ${error}`)
   }
 }
 
 function truncateDecimals(num: number, decimals: number) {
-  return Number(num.toFixed(decimals)).toString()
+  // Use toFixed to ensure proper decimal precision, then convert back to number
+  const fixed = num.toFixed(decimals)
+  return Number(fixed).toString()
 }
 
 function applySlippage(amount: number, slippagePercent: number): number {
-  return amount * (1 - slippagePercent / 100);
-}
+  // Ensure slippage is a positive number and not too large
+  const safeSlippage = Math.max(0, Math.min(slippagePercent, 50)) // Max 50% slippage
+  return amount * (1 - safeSlippage / 100);
+} 

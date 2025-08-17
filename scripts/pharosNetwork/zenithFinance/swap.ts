@@ -46,10 +46,12 @@ export async function multicall({
      logger.addLog("Checking allowance...")
      const allowance = await contractERC20.allowance(signer.address, router)
      if(allowance < amountIn){
-          logger.addLog("approving to router...")
+          logger.addLog("Approving to router...")
           const approveTx = await contractERC20.approve(router, amountIn)
           await approveTx.wait()
           logger.addLog(`Approved! txhash: ${approveTx.hash}`)
+     } else {
+          logger.addLog("Allowance sufficient, no approval needed")
      }
 
      const contractRouter = new ethers.Contract(router, ifaceRouter, signer)
@@ -57,8 +59,9 @@ export async function multicall({
           logger.addLog("Swapping via multicall method...")
           const tx = await contractRouter.multicall(deadline, [exactInputSingleData])
           await tx.wait()
-          logger.addLog(`succes! txhash: ${tx.hash}`)
+          logger.addSuccess(`Success! txhash: ${tx.hash}`)
      } catch (error) {
-          console.error(`failed! ${error}`)
+          logger.addLog(`Failed! ${error}`)
+          throw error
      }
 }

@@ -91,21 +91,28 @@ export async function advisor({
      await sleep(10000)
 
      console.log("Fetching advisor...")
-     const resAdvisor = await fetchWithUndici({
-          url: advisorUrl,
-          method: "POST",
-          headers: {
-               ...headers,
-               "Content-Type": "application/json",
-               "Authorization": AUTOSTAKING_TOKEN
-          },
-          body: JSON.stringify(payload)
-     })
-     if(resAdvisor.status != 201) {
-          console.log(resAdvisor.body)
+     try {
+          const resAdvisor = await fetchWithUndici({
+               url: advisorUrl,
+               method: "POST",
+               headers: {
+                    ...headers,
+                    "Content-Type": "application/json",
+                    "Authorization": AUTOSTAKING_TOKEN
+               },
+               body: JSON.stringify(payload)
+          })
+          
+          if(resAdvisor.status != 201) {
+               console.log(`Advisor API Error - Status: ${resAdvisor.status}, Body: ${resAdvisor.body}`)
+               return false
+          }
+          
+          return {
+               data: JSON.parse(resAdvisor.body)
+          }
+     } catch (error) {
+          console.log(`Advisor API Exception: ${error}`)
           return false
-     }
-     return {
-          data: JSON.parse(resAdvisor.body)
      }
 }

@@ -1,17 +1,18 @@
 'use client'
 
 import { useState } from 'react'
-import { LogsDisplay } from '@/components/LogsDisplay'
 import Link from 'next/link'
+import { LogsDisplay } from '@/components/LogsDisplay'
 
 export default function AutostakingWithdrawPage() {
   const [privateKey, setPrivateKey] = useState('')
   const [rpcUrl, setRpcUrl] = useState('https://rpc.pharosnetwork.com')
-  const [proxyUrl, setProxyUrl] = useState('')
   const [autostakingToken, setAutostakingToken] = useState('')
+  const [loopCount, setLoopCount] = useState(1)
+  const [timeoutMinMs, setTimeoutMinMs] = useState(10000)
+  const [timeoutMaxMs, setTimeoutMaxMs] = useState(20000)
   const [isRunning, setIsRunning] = useState(false)
   const [taskId, setTaskId] = useState<string | undefined>(undefined)
-  const [logs, setLogs] = useState<string[]>([])
   const [result, setResult] = useState<any>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -37,8 +38,10 @@ export default function AutostakingWithdrawPage() {
         body: JSON.stringify({
           privateKey,
           rpcUrl,
-          proxyUrl,
           autostakingToken,
+          loopCount,
+          timeoutMinMs,
+          timeoutMaxMs,
           taskId: newTaskId
         }),
       })
@@ -109,28 +112,58 @@ export default function AutostakingWithdrawPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Proxy URL
+                  Autostaking Token *
                 </label>
                 <input
-                  type="text"
-                  value={proxyUrl}
-                  onChange={(e) => setProxyUrl(e.target.value)}
+                  type="password"
+                  value={autostakingToken}
+                  onChange={(e) => setAutostakingToken(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Proxy URL (optional)"
+                  placeholder="Enter your autostaking token"
+                  required
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Autostaking Token
+                  Loop Count
                 </label>
                 <input
-                  type="text"
-                  value={autostakingToken}
-                  onChange={(e) => setAutostakingToken(e.target.value)}
+                  type="number"
+                  value={loopCount}
+                  onChange={(e) => setLoopCount(Number(e.target.value))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Autostaking token (optional)"
+                  placeholder="Number of loops"
+                  min="1"
+                  max="10"
                 />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Min Timeout (ms)
+                  </label>
+                  <input
+                    type="number"
+                    value={timeoutMinMs}
+                    onChange={(e) => setTimeoutMinMs(Number(e.target.value))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Minimum timeout"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Max Timeout (ms)
+                  </label>
+                  <input
+                    type="number"
+                    value={timeoutMaxMs}
+                    onChange={(e) => setTimeoutMaxMs(Number(e.target.value))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Maximum timeout"
+                  />
+                </div>
               </div>
 
               <button
@@ -144,20 +177,7 @@ export default function AutostakingWithdrawPage() {
           </div>
 
           {/* Logs */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-xl font-semibold mb-4">Logs</h2>
-            <div className="bg-gray-900 text-green-400 p-4 rounded-md h-96 overflow-y-auto font-mono text-sm">
-              {logs.length === 0 ? (
-                <p className="text-gray-500">No logs yet. Start the automation to see logs here.</p>
-              ) : (
-                logs.map((log, index) => (
-                  <div key={index} className="mb-1">
-                    {log}
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
+          <LogsDisplay taskId={taskId} />
         </div>
 
         {/* Result */}

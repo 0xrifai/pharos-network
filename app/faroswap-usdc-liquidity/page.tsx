@@ -8,9 +8,10 @@ export default function FaroswapUsdcLiquidityPage() {
   const [privateKey, setPrivateKey] = useState('')
   const [rpcUrl, setRpcUrl] = useState('https://rpc.pharosnetwork.com')
   const [loopCount, setLoopCount] = useState(1)
-  const [timeoutMinMs, setTimeoutMinMs] = useState(1000)
-  const [timeoutMaxMs, setTimeoutMaxMs] = useState(3000)
-  const [amountInPercent, setAmountInPercent] = useState(100)
+  const [timeoutMinMs, setTimeoutMinMs] = useState(10000)
+  const [timeoutMaxMs, setTimeoutMaxMs] = useState(20000)
+  const [amountInPercent, setAmountInPercent] = useState(1)
+  const [slippage, setSlippage] = useState(0.15)
   const [isRunning, setIsRunning] = useState(false)
   const [taskId, setTaskId] = useState<string | undefined>(undefined)
   const [result, setResult] = useState<any>(null)
@@ -24,8 +25,10 @@ export default function FaroswapUsdcLiquidityPage() {
     }
 
     setIsRunning(true)
-    setTaskId(`faroswap-usdc-liquidity-${Date.now()}`)
     setResult(null)
+    // Generate a unique task ID for this run
+    const newTaskId = `faroswap-usdc-liquidity-${Date.now()}`
+    setTaskId(newTaskId)
 
     try {
       const response = await fetch('/api/faroswap-usdc-liquidity', {
@@ -40,13 +43,13 @@ export default function FaroswapUsdcLiquidityPage() {
           timeoutMinMs,
           timeoutMaxMs,
           amountInPercent,
+          slippage,
+          taskId: newTaskId
         }),
       })
 
       const data = await response.json()
       setResult(data)
-
-      // Logs are now handled by real-time connection
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to run automation')
@@ -132,6 +135,22 @@ export default function FaroswapUsdcLiquidityPage() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   min="1"
                   max="100"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Slippage (%)
+                </label>
+                <input
+                  type="number"
+                  value={slippage}
+                  onChange={(e) => setSlippage(Number(e.target.value))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="0.15"
+                  min="0.01"
+                  max="50"
+                  step="0.01"
                 />
               </div>
 

@@ -8,7 +8,7 @@ export function setupProvider({
      rpcUrl
 }:Provider) {
      // Force SSL verification to be disabled at the Node.js level
-     process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
+     // process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
      
      // Define network configuration for Pharos Network
      const network = {

@@ -7,9 +7,10 @@ import { LogsDisplay } from '@/components/LogsDisplay'
 export default function AutostakingDepositPage() {
   const [privateKey, setPrivateKey] = useState('')
   const [rpcUrl, setRpcUrl] = useState('https://rpc.pharosnetwork.com')
+  const [autostakingToken, setAutostakingToken] = useState('')
   const [loopCount, setLoopCount] = useState(1)
-  const [timeoutMinMs, setTimeoutMinMs] = useState(1000)
-  const [timeoutMaxMs, setTimeoutMaxMs] = useState(3000)
+  const [timeoutMinMs, setTimeoutMinMs] = useState(10000)
+  const [timeoutMaxMs, setTimeoutMaxMs] = useState(20000)
   const [isRunning, setIsRunning] = useState(false)
   const [taskId, setTaskId] = useState<string | undefined>(undefined)
   const [result, setResult] = useState<any>(null)
@@ -37,6 +38,7 @@ export default function AutostakingDepositPage() {
         body: JSON.stringify({
           privateKey,
           rpcUrl,
+          autostakingToken,
           loopCount,
           timeoutMinMs,
           timeoutMaxMs,
@@ -105,6 +107,20 @@ export default function AutostakingDepositPage() {
                   onChange={(e) => setRpcUrl(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="RPC URL"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Autostaking Token *
+                </label>
+                <input
+                  type="password"
+                  value={autostakingToken}
+                  onChange={(e) => setAutostakingToken(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter your autostaking token"
+                  required
                 />
               </div>
 

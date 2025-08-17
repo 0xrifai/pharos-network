@@ -8,9 +8,10 @@ export default function ZenithWphrsSwapPage() {
   const [privateKey, setPrivateKey] = useState('')
   const [rpcUrl, setRpcUrl] = useState('https://rpc.pharosnetwork.com')
   const [loopCount, setLoopCount] = useState(1)
-  const [timeoutMinMs, setTimeoutMinMs] = useState(1000)
-  const [timeoutMaxMs, setTimeoutMaxMs] = useState(3000)
-  const [amountInPercent, setAmountInPercent] = useState(100)
+  const [timeoutMinMs, setTimeoutMinMs] = useState(10000)
+  const [timeoutMaxMs, setTimeoutMaxMs] = useState(20000)
+  const [amountInPercent, setAmountInPercent] = useState(1)
+  const [slippage, setSlippage] = useState(0.3)
   const [isRunning, setIsRunning] = useState(false)
   const [taskId, setTaskId] = useState<string | undefined>(undefined)
   const [result, setResult] = useState<any>(null)
@@ -42,6 +43,7 @@ export default function ZenithWphrsSwapPage() {
           timeoutMinMs,
           timeoutMaxMs,
           amountInPercent,
+          slippage,
           taskId: newTaskId
         }),
       })
@@ -135,6 +137,22 @@ export default function ZenithWphrsSwapPage() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   min="1"
                   max="100"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Slippage (%)
+                </label>
+                <input
+                  type="number"
+                  value={slippage}
+                  onChange={(e) => setSlippage(Number(e.target.value))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="0.3"
+                  min="0.01"
+                  max="50"
+                  step="0.01"
                 />
               </div>
 

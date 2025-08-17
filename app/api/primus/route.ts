@@ -14,8 +14,8 @@ export async function POST(request: NextRequest) {
       privateKey,
       rpcUrl = 'http://rpc.pharosnetwork.com', 
       loopCount = 1, 
-      timeoutMinMs = 1000, 
-      timeoutMaxMs = 3000,
+      timeoutMinMs = 10000, 
+      timeoutMaxMs = 20000,
       taskId: requestTaskId
     } = await request.json()
 

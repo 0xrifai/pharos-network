@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
   let taskId: string | undefined
   
   try {
-    const {  rpcUrl, loopCount = 1, timeoutMinMs = 1000, timeoutMaxMs = 3000, amountInPercent = 100, taskId: requestTaskId } = await request.json()
+    const {  rpcUrl, loopCount = 1, timeoutMinMs = 10000, timeoutMaxMs = 20000, amountInPercent = 1, taskId: requestTaskId } = await request.json()
 
     taskId = requestTaskId
 

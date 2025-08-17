@@ -1,13 +1,13 @@
 import { Interface, Wallet } from "ethers"
-import { approve } from "@scripts/utils/approve"
-import { VaultMulticall_v2Abi } from "@scripts/lib/data"
+import { approve } from "../../utils/approve"
+import { VaultMulticall_v2Abi } from "../../lib/data"
 
 interface MulticallParams {
      wallet: Wallet,
      vaultAddress: string,
      router: string,
      amount: bigint,
-     logger: any
+     logger?: any
 }
 
 export async function withdrawFromVault({
@@ -25,6 +25,9 @@ export async function withdrawFromVault({
           amount: amount,
           logger
      })
+     if (logger) {
+          logger.addLog("Approved ")
+     }
      const encodedWithdraw = iface.encodeFunctionData("withdrawFromVault", [
           vaultAddress,
           amount,

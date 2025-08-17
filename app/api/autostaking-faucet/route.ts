@@ -12,9 +12,10 @@ export async function POST(request: NextRequest) {
   try {
     const {  
       privateKey,
-      rpcUrl = 'http://rpc.pharosnetwork.com', 
-      timeoutMinMs = 1000, 
-      timeoutMaxMs = 3000,
+      rpcUrl = 'http://rpc.pharosnetwork.com',
+      autostakingToken = '',
+      timeoutMinMs = 10000, 
+      timeoutMaxMs = 20000,
       taskId: requestTaskId
     } = await request.json()
 
@@ -23,6 +24,13 @@ export async function POST(request: NextRequest) {
     if (!privateKey) {
       return NextResponse.json(
         { error: 'Private key is required' },
+        { status: 400 }
+      )
+    }
+
+    if (!autostakingToken) {
+      return NextResponse.json(
+        { error: 'Autostaking token is required' },
         { status: 400 }
       )
     }
@@ -45,6 +53,7 @@ export async function POST(request: NextRequest) {
 
     // Set environment variables from frontend input
     process.env.PRIVATE_KEY = privateKey
+    process.env.AUTOSTAKING_TOKEN = autostakingToken
 
     // Setup provider and wallet
     const provider = setupProvider({
@@ -60,6 +69,7 @@ export async function POST(request: NextRequest) {
     logger.addLog('Starting Autostaking Faucet automation...')
     logger.addLog(`Wallet Address: ${wallet.address}`)
     logger.addLog(`Network: ${rpcUrl}`)
+    logger.addLog(`Autostaking Token: ${autostakingToken ? 'Set' : 'Not set'}`)
     
     try {
       logger.addLog('Requesting faucet tokens...')

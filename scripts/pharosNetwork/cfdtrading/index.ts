@@ -9,22 +9,23 @@ import { approve } from "@scripts/utils/approve"
 import { RealtimeLogger } from "@/scripts/utils/realtime-logger"
 
 interface OpenPositionParams {
-  baseDir: string,
+  // baseDir: string,
   signer: Wallet,
   provider: JsonRpcProvider,
   logger: RealtimeLogger
 }
 
 export async function OpenPosition({
-  baseDir,
+  // baseDir,
   signer,
   provider,
   logger
 }: OpenPositionParams) {
      // Force SSL verification to be disabled
-     process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
+     // process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
      
-     dotenv.config({ path: path.join(baseDir, ".env") })
+     // dotenv.config({ path: path.join(baseDir, ".env") })
+
      const index = Math.floor(randomAmount({
           min: 0,
           max: pairs.length - 1

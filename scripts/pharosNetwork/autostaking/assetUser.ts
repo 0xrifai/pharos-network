@@ -17,19 +17,27 @@ export async function assetUser({
 }: AssetUser) {
      console.log("Fetching user positions...")
      const assetUrl = `https://asia-east2-auto-staking.cloudfunctions.net/auto_staking_pharos_v4/user/positions?user=${walletAddress}&env=pharos`
-     const res = await fetchWithUndici({
-          url: assetUrl,
-          method: "GET",
-          headers: {
-               ...headers,
-               "Authorization": AUTOSTAKING_TOKEN
+     
+     try {
+          const res = await fetchWithUndici({
+               url: assetUrl,
+               method: "GET",
+               headers: {
+                    ...headers,
+                    "Authorization": AUTOSTAKING_TOKEN
+               }
+          })
+          
+          if(res.status != 200) {
+               logger.addError(`Asset API Error - Status: ${res.status}, Body: ${res.body}`)
+               return false
           }
-     })
-     if(res.status != 200) {
-          logger.addError(res.body)
+          
+          return {
+               data: JSON.parse(res.body)
+          }
+     } catch (error) {
+          logger.addError(`Asset API Exception: ${error}`)
           return false
-     }
-     return {
-          data: JSON.parse(res.body)
      }
 }

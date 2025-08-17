@@ -16,13 +16,20 @@ export async function POST(request: NextRequest) {
   let taskId: string | undefined
   
   try {
-    const {  rpcUrl, loopCount = 1, timeoutMinMs = 1000, timeoutMaxMs = 3000, amountInPercent = 100, taskId: requestTaskId } = await request.json()
+    const { privateKey, rpcUrl, loopCount = 1, timeoutMinMs = 10000, timeoutMaxMs = 20000, amountInPercent = 1, slippage = 0.3, taskId: requestTaskId } = await request.json()
 
     taskId = requestTaskId
 
     if (!taskId) {
       return NextResponse.json(
         { error: 'Task ID is required' },
+        { status: 400 }
+      )
+    }
+
+    if (!privateKey) {
+      return NextResponse.json(
+        { error: 'Private key is required' },
         { status: 400 }
       )
     }
@@ -40,15 +47,14 @@ export async function POST(request: NextRequest) {
       rpcUrl: rpcUrl || 'https://rpc.pharosnetwork.com'
     })
 
-    const wallet = ownAddress({
-      dirname: process.cwd(),
-      provider,
-      key: "PRIVATE_KEY"
-    })
+    // Create wallet directly from private key instead of using ownAddress function
+    const { Wallet } = await import('ethers')
+    const wallet = new Wallet(privateKey, provider)
 
     logger.addLog('Starting Zenith USDC Swap automation...')
     logger.addLog(`Wallet Address: ${wallet.address}`)
     logger.addLog(`Network: ${rpcUrl || 'https://rpc.pharosnetwork.com'}`)
+    logger.addLog(`Slippage: ${slippage}%`)
 
     for (let index = 1; index <= loopCount; index++) {
       logger.addLog(`Task swap usdc ${index}/${loopCount}`)
@@ -88,7 +94,7 @@ export async function POST(request: NextRequest) {
       logger.addLog(`USDC Balance: ${formatUnits(usdcBalance, usdcDecimals)} ${usdcSymbol}`)
       logger.addLog(`USDT Balance: ${usdtSymbol}`)
 
-      const slippageTolerance = 0.003
+      const slippageTolerance = slippage / 100
       // let priceScaled = BigInt(Math.floor(priceUsdcToUsdt.tokenAToTokenB * Math.pow(10, Number(usdtDecimals))))
       let amountIn = usdcBalance * BigInt(amountInPercent) / BigInt(100)
       // let amountOut = (amountIn * priceScaled * BigInt(1000 - Math.floor(slippageTolerance * 1000))) / (BigInt(Math.pow(10, Number(usdcDecimals))) * BigInt(1000))
@@ -108,7 +114,7 @@ export async function POST(request: NextRequest) {
           amountIn,
           amountOut: BigInt(0), // No fixed amountOut for this swap
           fee: 0, // No fixed fee for this swap
-          signer: wallet.signer,
+          signer: wallet,
           deadline,
           logger
         })
@@ -155,7 +161,7 @@ export async function POST(request: NextRequest) {
           amountIn,
           amountOut: BigInt(0), // No fixed amountOut for this swap
           fee: 0, // No fixed fee for this swap
-          signer: wallet.signer,
+          signer: wallet,
           deadline,
           logger
         })

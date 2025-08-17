@@ -14,8 +14,8 @@ export async function POST(request: NextRequest) {
       privateKey,
       rpcUrl = 'http://rpc.pharosnetwork.com', 
       loopCount = 1, 
-      timeoutMinMs = 1000, 
-      timeoutMaxMs = 3000,
+      timeoutMinMs = 10000, 
+      timeoutMaxMs = 20000,
       proxyUrl = "",
       taskId: requestTaskId
     } = await request.json()
@@ -62,13 +62,13 @@ export async function POST(request: NextRequest) {
 
     logger.addLog('Starting CFD Trading automation...')
 
-    const baseDir = process.cwd()
+    // const baseDir = process.cwd()
 
     for (let index = 1; index <= loopCount; index++) {
       logger.addLog(`Task cfd trading brokex ${index}/${loopCount}`)
       try {
         await OpenPosition({
-          baseDir,
+          // baseDir,
           signer: wallet.signer,
           provider,
           logger

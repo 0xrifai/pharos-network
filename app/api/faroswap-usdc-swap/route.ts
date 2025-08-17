@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { loggerManager } from '@/scripts/utils/realtime-logger'
 import { setupProvider } from '@/scripts/utils/provider'
-import { ownAddress } from '@/scripts/utils/wallet'
 import { pharosTokenAddress } from '@/scripts/lib/data'
 import { swap } from '@/scripts/pharosNetwork/faroswap/swap'
 import { sleep } from '@/scripts/utils/time'
@@ -11,13 +10,20 @@ export async function POST(request: NextRequest) {
   let taskId: string | undefined
   
   try {
-    const {  rpcUrl, loopCount = 1, timeoutMinMs = 1000, timeoutMaxMs = 3000, amountInPercent = 100, taskId: requestTaskId } = await request.json()
+    const { privateKey, rpcUrl, loopCount = 1, timeoutMinMs = 10000, timeoutMaxMs = 20000, amountInPercent = 1, slippage = 0.5, taskId: requestTaskId } = await request.json()
 
     taskId = requestTaskId
 
     if (!taskId) {
       return NextResponse.json(
         { error: 'Task ID is required' },
+        { status: 400 }
+      )
+    }
+
+    if (!privateKey) {
+      return NextResponse.json(
+        { error: 'Private key is required' },
         { status: 400 }
       )
     }
@@ -36,17 +42,13 @@ export async function POST(request: NextRequest) {
       rpcUrl: rpcUrl || 'https://rpc.pharosnetwork.com'
     })
 
-    const wallet = ownAddress({
-      dirname: process.cwd(),
-      provider,
-      key: "PRIVATE_KEY"
-    })
+    // Create wallet directly from private key instead of using ownAddress function
+    const { Wallet } = await import('ethers')
+    const wallet = new Wallet(privateKey, provider)
 
     logger.addLog('Starting Faroswap USDC Swap automation...')
     logger.addLog(`Wallet Address: ${wallet.address}`)
     logger.addLog(`Network: ${rpcUrl || 'https://rpc.pharosnetwork.com'}`)
-
-    const baseDir = process.cwd()
 
     for (let index = 1; index <= loopCount; index++) {
       logger.addLog(`Task swap usdc ${index}/${loopCount}`)
@@ -58,9 +60,10 @@ export async function POST(request: NextRequest) {
       logger.addLog(`USDT Token: ${usdtAddress}`)
       logger.addLog(`WPHRS Token: ${wphrsAddress}`)
       logger.addLog(`Amount In Percent: ${amountInPercent}%`)
+      logger.addLog(`Slippage: ${slippage}%`)
 
       let deadline = Math.floor(Date.now() / 1000) + 60 * 10
-      const slippageUrl = "31.201"
+      const slippageUrl = slippage.toString()
       
       logger.addLog('Swapping USDC to WPHRS...')
       logger.addLog(`Deadline: ${deadline}`)
@@ -69,10 +72,9 @@ export async function POST(request: NextRequest) {
         tokenIn: usdcAddress,
         tokenOut: wphrsAddress,
         deadline,
-        signer: wallet.signer,
+        signer: wallet,
         amountIn_inPercent: amountInPercent,
         provider,
-        dirname: baseDir,
         slippageUrl,
         logger
       })
@@ -93,10 +95,9 @@ export async function POST(request: NextRequest) {
         tokenIn: usdcAddress,
         tokenOut: usdtAddress,
         deadline,
-        signer: wallet.signer,
+        signer: wallet,
         amountIn_inPercent: amountInPercent,
         provider,
-        dirname: baseDir,
         slippageUrl,
         logger
       })
@@ -108,22 +109,24 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: 'Faroswap USDC Swap automation completed successfully',
-      logs: logger.getLogs()
+      taskId: taskId
     })
 
   } catch (error) {
-    console.error('Error in faroswap-usdc-swap API:', error)
+    console.error('Error in faroswap-usdc-swap:', error)
     
-    // Try to log error if we have a logger
     if (taskId) {
       const logger = loggerManager.getLogger(taskId)
       if (logger) {
-        logger.addError(`Internal server error: ${error instanceof Error ? error.message : 'Unknown error'}`)
+        logger.addLog(`Error: ${error}`)
       }
     }
-    
+
     return NextResponse.json(
-      { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
+      { 
+        error: error instanceof Error ? error.message : 'Unknown error occurred',
+        taskId: taskId 
+      },
       { status: 500 }
     )
   }

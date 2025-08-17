@@ -18,9 +18,32 @@ export async function POST(request: NextRequest) {
   let taskId: string | undefined
   
   try {
-    const {  rpcUrl, proxyUrl = "", autostakingToken = "", loopCount = 1, timeoutMinMs = 1000, timeoutMaxMs = 3000, taskId: requestTaskId } = await request.json()
+    const {  
+      privateKey,
+      rpcUrl, 
+      proxyUrl = "", 
+      autostakingToken = "", 
+      loopCount = 1, 
+      timeoutMinMs = 10000, 
+      timeoutMaxMs = 20000, 
+      taskId: requestTaskId 
+    } = await request.json()
 
     taskId = requestTaskId
+
+    if (!privateKey) {
+      return NextResponse.json(
+        { error: 'Private key is required' },
+        { status: 400 }
+      )
+    }
+
+    if (!autostakingToken) {
+      return NextResponse.json(
+        { error: 'Autostaking token is required' },
+        { status: 400 }
+      )
+    }
 
     if (!taskId) {
       return NextResponse.json(
@@ -37,6 +60,10 @@ export async function POST(request: NextRequest) {
 
     // Clear previous logs
     logger.clear()
+
+    // Set environment variables from frontend input
+    process.env.PRIVATE_KEY = privateKey
+    process.env.AUTOSTAKING_TOKEN = autostakingToken
 
     // Setup provider and wallet
     const provider = setupProvider({
@@ -73,7 +100,7 @@ export async function POST(request: NextRequest) {
           continue
         }
         
-        const positions: any[] = []
+        const positions = asset?.data.positions || []
         logger.addLog(`Found ${positions.length} positions`)
         
         if (positions.length == 0) {
